@@ -25,6 +25,12 @@ loop i env = do
       CQuit -> do
                doQuit
                loop(i+1) env
+      CEval str -> do
+                   doEval env str
+                   loop(i+1) env
+      CRun str -> do
+                  doRun str
+                  loop(i+1) env
       Cload str -> do
                     envs <- doLoad str
                     helper(envs)
@@ -38,13 +44,3 @@ loop i env = do
                         printLs :: Nano.Env -> String
                         printLs [] = []
                         printLs ((xId, xVal): xs) = xId ++ " " ++ printLs xs
-      CEval str -> do
-                   doEval env str
-                   loop(i+1) env
-      CRun str -> do
-                  doRun str
-                  loop(i+1) env
-      CUnkown -> do
-                 doUnknown
-                 loop(i+1) env
-
