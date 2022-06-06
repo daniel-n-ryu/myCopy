@@ -193,19 +193,16 @@ evalE :: Env -> Expr -> Either Value Value
 --------------------------------------------------------------------------------
 evalE env (EInt i)       = Right (Vint i)
 evalE env (EBool b)      = Right (VBool b)
-evalE env (EVar x)       = case (lookupId x env) of 
-				Error err1 -> Left err1
-				Value v1 -> Right v1
+evalE env (EVar x)       = Right (lookupId x env)
 evalE env (EBin o e1 e2) = do v1 <- evalE env e1
 			      v2 <- evalE env e2
 			      return (evalOp o v1 v2)
 				
-evalE env (EIf c t e)    = do v1 <- evalE env c
-			      v2 <- evalE env t
-			      v3 <- evalE env e
-			      if v1 == True then return v2 else return v3
-evalE env (ELet x e1 e2) = do v1 <- evalE env e1
-			      return evalE ((x, v1) : env) e2
+evalE env (EIf c t e)    = if x == True then evalE env t else evalE env e
+                             where
+                               (VBool x) = eval env c 
+			      
+evalE env (ELet x e1 e2) = evalE ((x, eval env e1):env) e2 
  
 evalE env (EApp e1 e2)   = case evalE env e1 of
                              Right (VClos frozenEnv x body) -> evalE env' body
@@ -214,6 +211,7 @@ evalE env (EApp e1 e2)   = case evalE env e1 of
                                  env' = ((x,v) : frozenEnv) ++ env
                              Right (VPrim f) -> Right (f (eval env e2))
                              _ -> throw (Error "Type Error")
+			     
 evalE env (ELam x e)     = Right (VClos env x e)
 evalE env ENil           = Right VNil
 
