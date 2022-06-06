@@ -187,23 +187,21 @@ eval :: Env -> Expr -> Value
 eval env e = case evalE env e of 
   Left exn  -> exn
   Right val -> val
-
 --------------------------------------------------------------------------------
 evalE :: Env -> Expr -> Either Value Value
 --------------------------------------------------------------------------------
-evalE env (EInt i)       = Right (Vint i)
-evalE env (EBool b)      = Right (VBool b)
+evalE env (EInt i)       = Right (VInt i)
+evalE env (EBool b)      = Right (VBool b) 
 evalE env (EVar x)       = Right (lookupId x env)
-evalE env (EBin o e1 e2) = do v1 <- evalE env e1
-			      v2 <- evalE env e2
-			      return (evalOp o v1 v2)
-				
-evalE env (EIf c t e)    = if x == True then evalE env t else evalE env e
+evalE env (EBin o e1 e2) = do n1 <- evalE env e1
+                              n2 <- evalE env e2
+                              return (evalOp o n1 n2 )
+  
+evalE env (EIf c t e)    = if y == True then evalE env t else evalE env e
                              where
-                               (VBool x) = eval env c 
-			      
+                               (VBool y) = eval env c 
+
 evalE env (ELet x e1 e2) = evalE ((x, eval env e1):env) e2 
- 
 evalE env (EApp e1 e2)   = case evalE env e1 of
                              Right (VClos frozenEnv x body) -> evalE env' body
                                where
@@ -211,14 +209,17 @@ evalE env (EApp e1 e2)   = case evalE env e1 of
                                  env' = ((x,v) : frozenEnv) ++ env
                              Right (VPrim f) -> Right (f (eval env e2))
                              _ -> throw (Error "Type Error")
-			     
-evalE env (ELam x e)     = Right (VClos env x e)
-evalE env ENil           = Right VNil
+evalE env (ELam x e)     = Right (VClos env x e) 
+evalE env ENil           = Right VNil 
 
 evalE env (EThr e)       = Left (eval env e)
+                           
 evalE env (ETry e1 x e2) = case evalE env e1 of
                            Left ex1 -> evalE ((x , ex1):env) e2
                            Right ex1 -> Right ex1
+   
+        
+                              
 
 --------------------------------------------------------------------------------
 -- | Unit tests for `throw`
@@ -259,20 +260,18 @@ evalE env (ETry e1 x e2) = case evalE env e1 of
 -- try (1 + (throw 2)) handle z => z + 10   ==> 12 
 -- try ((throw 1) + (throw 2)) handle z => z + 10   ==> 11 
 
--- >>> eval [] (ETry ex_1_2 "z" (EBin Plus (EVar "z") (EInt 10)))
+-- >>> eval [] (ETry ex_1_2 "z" (EBin Plus "z" (EInt 10))
 -- 3
--- >>> eval [] (ETry ex_t1_2 "z" (EBin Plus (EVar "z") (EInt 10)))
+-- >>> eval [] (ETry ex_t1_2 "z" (EBin Plus "z" (EInt 10))
 -- 11
--- >>> eval [] (ETry ex_1_t2 "z" (EBin Plus (EVar "z") (EInt 10)))
+-- >>> eval [] (ETry ex_1_t2 "z" (EBin Plus "z" (EInt 10))
 -- 12
--- >>> eval [] (ETry ex_t1_t2 "z" (EBin Plus (EVar "z") (EInt 10)))
+-- >>> eval [] (ETry ex_t1_t2 "z" (EBin Plus "z" (EInt 10))
 -- 11
--- >>> eval [] (ETry ex_t12 "z" (EBin Plus (EVar "z") (EInt 10)))
+-- >>> eval [] (ETry ex_t12 "z" (EBin Plus "z" (EInt 10))
 -- 13
--- >>> eval [] (ETry ex_tt12 "z" (EBin Plus (EVar "z") (EInt 10)))
+-- >>> eval [] (ETry ex_tt12 "z" (EBin Plus "z" (EInt 10))
 -- 12
-
---------------------------------------------------------------------------------
 
 --------------------------------------------------------------------------------
 evalOp :: Binop -> Value -> Value -> Value
@@ -280,24 +279,25 @@ evalOp :: Binop -> Value -> Value -> Value
 evalOp Plus (VInt x) (VInt y) = (VInt (x + y))
 evalOp Minus (VInt x) (VInt y) = (VInt (x - y))
 evalOp Mul (VInt x) (VInt y) = (VInt (x * y))
+evalOp Div (VInt x) (VInt y) = (VInt (x `div` y))
 evalOp Eq (VInt x) (VInt y) = (VBool (x == y))
 evalOp Eq (VBool x) (VBool y) = (VBool (x == y))
+evalOp Eq VNil VNil   = (VBool True)
+evalOp Eq (VPair a b) (VPair c d) = if p == True then evalOp Eq b d else (VBool False)
+        where
+        (VBool p) = evalOp Eq a c
+
 evalOp Ne (VInt x) (VInt y) = (VBool (x /= y))
 evalOp Ne (VBool x) (VBool y) = (VBool (x /= y))
 evalOp Lt (VInt x) (VInt y) = (VBool (x < y))
 evalOp Le (VInt x) (VInt y) = (VBool (x <= y))
-evalOp And (VBool x) (VBool y) = VBool ((x == True) && (y == True))
-evalOp Or (VBool x) (VBool y) = VBool ((x == True) || (y == True))
-evalOp Cons x y = VCons x y
-evalOp Eq VNil VNil   = (VBool True)
-evalOp Eq (VCons a b) (VCons c d) = if p == True then evalOp Eq b d else (VBool False)
-	where
-	(VBool p) = evalOp Eq a c
-
+evalOp And (VBool x) (VBool y) = (VBool (x && y))
+evalOp Or (VBool x) (VBool y) = (VBool (x || y))
+evalOp Cons x y = VPair x y
 
 evalOp Eq _ _         = (VBool False)
-evalOp _ _ _  = throw (Error "type error")
---------------------------------------------------------------------------------
+evalOp _ _ _  = throw (Error "type errorz")
+-------------------------------------------------------------------------------"
 -- | `lookupId x env` returns the most recent
 --   binding for the variable `x` (i.e. the first
 --   from the left) in the list representing the
@@ -314,15 +314,14 @@ evalOp _ _ _  = throw (Error "type error")
 --------------------------------------------------------------------------------
 lookupId :: Id -> Env -> Value
 --------------------------------------------------------------------------------
-lookupId x [] = throw (Error ("unbound variable: " ++ x))
-lookupId x ((i,v) : env) = if x == i then v else lookupId x env 
+lookupId x env = case lookup x env of
+                      Nothing -> throw (Error ("unbound variable: " ++ x))
+                      Just val -> val
 
 prelude :: Env
 prelude =
-  [ 
-    ("head", VPrim(\(VCons x _) -> x)), ("tail", VPrim(\(VCons _ y) -> y))
-    -- HINT: you may extend this "built-in" environment
-    -- with some "operators" that you find useful...
+  [
+   ("tail", VPrim(\(VPair _ y) -> y)), ("head", VPrim(\(VPair x _) -> x)) 
   ]
 
 env0 :: Env
