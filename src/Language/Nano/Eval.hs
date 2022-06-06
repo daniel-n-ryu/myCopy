@@ -207,13 +207,13 @@ evalE env (EIf c t e)    = do v1 <- evalE env c
 evalE env (ELet x e1 e2) = do v1 <- evalE env e1
 			      return evalE ((x, v1) : env) e2
  
-evalE env (EApp e1 e2)   = case evalE env e1 of 
-				Right (VClos frozenEnv x body) -> evalE env' body
-				where
-					v = eval env e2
-					env' = ((x,v) : frozenEnv) ++ env
-				Right (VPrim f) -> Right (f (eval env e2))
-				_ -> throw (Error "Type Error")
+evalE env (EApp e1 e2)   = case evalE env e1 of
+                             Right (VClos frozenEnv x body) -> evalE env' body
+                               where
+                                 v = eval env e2
+                                 env' = ((x,v) : frozenEnv) ++ env
+                             Right (VPrim f) -> Right (f (eval env e2))
+                             _ -> throw (Error "Type Error")
 evalE env (ELam x e)     = Right (VClos env x e)
 evalE env ENil           = Right VNil
 
