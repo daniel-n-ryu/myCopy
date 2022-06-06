@@ -217,8 +217,10 @@ evalE env (EApp e1 e2)   = case evalE env e1 of
 evalE env (ELam x e)     = Right (VClos env x e)
 evalE env ENil           = Right VNil
 
-evalE env (EThr e)       = error "TBD" 
-evalE env (ETry e1 x e2) = error "TBD" 
+evalE env (EThr e)       = Left (eval env e)
+evalE env (ETry e1 x e2) = case evalE env e1 of
+                           Left ex1 -> evalE ((x , ex1):env) e2
+                           Right ex1 -> Right ex1
 
 --------------------------------------------------------------------------------
 -- | Unit tests for `throw`
