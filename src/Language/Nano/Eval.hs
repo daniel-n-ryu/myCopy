@@ -191,15 +191,31 @@ eval env e = case evalE env e of
 --------------------------------------------------------------------------------
 evalE :: Env -> Expr -> Either Value Value
 --------------------------------------------------------------------------------
-evalE env (EInt i)       = error "TBD"
-evalE env (EBool b)      = error "TBD" 
-evalE env (EVar x)       = error "TBD"
-evalE env (EBin o e1 e2) = error "TBD" 
-evalE env (EIf c t e)    = error "TBD" 
-evalE env (ELet x e1 e2) = error "TBD" 
-evalE env (EApp e1 e2)   = error "TBD" 
-evalE env (ELam x e)     = error "TBD" 
-evalE env ENil           = error "TBD" 
+evalE env (EInt i)       = Right (Vint i)
+evalE env (EBool b)      = Right (VBool b)
+evalE env (EVar x)       = case (lookupId x env) of 
+				Error err1 -> Left err1
+				Value v1 -> Right v1
+evalE env (EBin o e1 e2) = do v1 <- evalE env e1
+			      v2 <- evalE env e2
+			      return (EvalOp o v1 v2)
+				
+evalE env (EIf c t e)    = do v1 <- evalE env c
+			      v2 <- evalE env t
+			      v3 <- evalE env e
+			      if v1 == True then return v2 else return v3
+evalE env (ELet x e1 e2) = do v1 <- evalE env e1
+			      return evalE ((x, v1) : env) e2
+ 
+evalE env (EApp e1 e2)   = case evalE env e1 of 
+				Right (VClos frozenEnv x body) -> evalE env' body
+				where
+					v = eval env e2
+					env' = ((x,v) : frozenEnv) ++ env
+				Right (VPrim f) -> Right (f (eval env e2))
+				_ -> throw (Error "Type Error")
+evalE env (ELam x e)     = Right (VClos env x e)
+evalE env ENil           = Right VNil
 
 evalE env (EThr e)       = error "TBD" 
 evalE env (ETry e1 x e2) = error "TBD" 
