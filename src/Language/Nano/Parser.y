@@ -77,7 +77,51 @@ Def  : ID '=' Expr                 { ($1, $3) }
 
 -- don't replace Top with the one from the previous assignment!
 
-Expr : TNUM                        { EInt $1 }
+Expr : let ID  '=' Expr in Expr                {ELet $2 $4 $6}  
+     | let ID IDS '=' Expr in Expr             {ELet $2 (mkLam $3 $5) $7}
+     | '\\' ID '->' Expr                       {ELam $2 $4}
+     | if Expr then Expr else Expr             {EIf $2 $4 $6}
+     | OrForm                                  {$1}
+
+OrForm : OrForm '||' OrForm                    {EBin Or $1 $3}
+       | AndForm                               {$1}
+
+AndForm : AndForm '&&' AndForm                 {EBin And $1 $3}
+        | Compare                              {$1}
+     
+Compare : Compare '==' Compare                 {EBin Eq $1 $3} 
+        | Compare '/=' Compare                 {EBin Ne $1 $3}
+        | Compare '<' Compare                  {EBin Lt $1 $3}
+        | Compare '<=' Compare                 {EBin Le $1 $3}
+        | Lists                                {$1}
+
+Lists : '['']'                                 {ENil}
+      | Calc ':' Lists                         {EBin Cons $1 $3}
+      | '[' Lists                              {$2}
+      | Lists ']'                              {EBin Cons $1 ENil}
+      | Calc ',' Lists                         {EBin Cons $1 $3}
+      | Calc                                   {$1}
+
+Calc : Calc '+' Calc                           {EBin Plus $1 $3}
+     | Calc '-' Calc                           {EBin Minus $1 $3} 
+     | Multiply                                {$1}
+
+Multiply : Multiply '*' Multiply               {EBin Mul $1 $3}      
+         | Func                                {$1}
+
+Func : Func Variable                           {EApp $1 $2}
+     | Variable                                {$1}
+
+Variable: '(' Expr ')'                         {$2}
+        | TNUM                                 { EInt $1 }
+        | true                                 { EBool True }
+        | false                                { EBool False}
+        | ID                                   { EVar  $1 }
+
+
+IDS : ID     {[$1]}
+    | ID IDS {$1:$2}
+
 
 {
 mkLam :: [Id] -> Expr -> Expr
