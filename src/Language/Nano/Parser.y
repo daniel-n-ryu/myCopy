@@ -4,7 +4,6 @@
 
 module Language.Nano.Parser (
     parseExpr
-  , parseDefs
   , parseTokens
   ) where
 
@@ -55,7 +54,6 @@ import Control.Exception
     ']'   { RBRAC _  }
     ','   { COMMA _  }
 
-
 -- Operators
 %right in
 %nonassoc '=' if then else
@@ -67,62 +65,51 @@ import Control.Exception
 %left '+' '-'
 %left '*'
 %%
+------------------------------------------------------
+Top  : ID '=' Expr                 { $3 }
+     | Expr                        { $1 }
+
+Expr : let ID '=' Expr in Expr     { ELet $2 $4 $6}
+     | let ID IDS '=' Expr in Expr { ELet $2 (mkLam $3 $5) $7}
+     | if Expr then Expr else Expr { EIf $2 $4 $6 }
+     | '\\' ID '->' Expr           { ELam $2 $4 }
+     | Expr '||' Expr              { EBin Or $1 $3}
+     | Expr '&&' Expr              { EBin And $1 $3}
+     | Expr '<' Expr               { EBin Lt $1 $3}
+     | Expr '<=' Expr              { EBin Le $1 $3}
+     | Expr '==' Expr              { EBin Eq $1 $3}
+     | Expr '/=' Expr              { EBin Ne $1 $3}
+     | List                       {$1}
+
+       
+
+List : '['']'                     {ENil}
+       | '[' List                 {$2}
+       | List ':' List            { EBin Cons $1 $3 }
+       | List ',' List            { EBin Cons $1 $3 }
+       | List ']'                 { EBin Cons $1 ENil}
+       | Ahri                     {$1}
+
+Ahri : Ahri '+' Ahri              { EBin Plus $1 $3}
+     | Ahri '-' Ahri            { EBin Minus $1 $3}
+     | Ahri '*' Ahri            { EBin Mul $1 $3}
+     | Func                     {$1}
+       
+Func : Func Var                { EApp $1 $2 }
+     | Var                      {$1}
 
 
-Top  : Def                        { [$1] } 
-     | Def ',' Top                { $1 : $3 }
-     | Expr                       { [("", $1) ]}
-
-Def  : ID '=' Expr                 { ($1, $3) }
-
--- don't replace Top with the one from the previous assignment!
-
-Expr : let ID  '=' Expr in Expr                {ELet $2 $4 $6}  
-     | let ID IDS '=' Expr in Expr             {ELet $2 (mkLam $3 $5) $7}
-     | '\\' ID '->' Expr                       {ELam $2 $4}
-     | if Expr then Expr else Expr             {EIf $2 $4 $6}
-     | OrForm                                  {$1}
-
-OrForm : OrForm '||' OrForm                    {EBin Or $1 $3}
-       | AndForm                               {$1}
-
-AndForm : AndForm '&&' AndForm                 {EBin And $1 $3}
-        | Compare                              {$1}
-     
-Compare : Compare '==' Compare                 {EBin Eq $1 $3} 
-        | Compare '/=' Compare                 {EBin Ne $1 $3}
-        | Compare '<' Compare                  {EBin Lt $1 $3}
-        | Compare '<=' Compare                 {EBin Le $1 $3}
-        | Lists                                {$1}
-
-Lists : '['']'                                 {ENil}
-      | Calc ':' Lists                         {EBin Cons $1 $3}
-      | '[' Lists                              {$2}
-      | Lists ']'                              {EBin Cons $1 ENil}
-      | Calc ',' Lists                         {EBin Cons $1 $3}
-      | Calc                                   {$1}
-
-Calc : Calc '+' Calc                           {EBin Plus $1 $3}
-     | Calc '-' Calc                           {EBin Minus $1 $3} 
-     | Multiply                                {$1}
-
-Multiply : Multiply '*' Multiply               {EBin Mul $1 $3}      
-         | Func                                {$1}
-
-Func : Func Variable                           {EApp $1 $2}
-     | Variable                                {$1}
-
-Variable: '(' Expr ')'                         {$2}
-        | TNUM                                 { EInt $1 }
-        | true                                 { EBool True }
-        | false                                { EBool False}
-        | ID                                   { EVar  $1 }
+Var : '(' Expr ')'                { $2 }
+    | TNUM                        { EInt $1 }
+    | true                        { EBool True }
+    | false                       { EBool False }
+    | ID                          { EVar $1 }
 
 
-IDS : ID     {[$1]}
-    | ID IDS {$1:$2}
+IDS : ID                           {[$1]}
+    | ID IDS                       {$1:$2}
 
-
+------------------------------------------------------
 {
 mkLam :: [Id] -> Expr -> Expr
 mkLam []     e = e
@@ -133,16 +120,11 @@ parseError (l:ls) = throwError (show l)
 parseError []     = throwError "Unexpected end of Input"
 
 parseExpr :: String -> Expr
-parseExpr s = case parseDefs' s of
-                Left msg         -> throw (Error ("parse error:" ++ msg))
-                Right ((_,e):_)  -> e
-
-parseDefs :: String -> [(Id, Expr)]
-parseDefs s = case parseDefs' s of 
+parseExpr s = case parseExpr' s of
                 Left msg -> throw (Error ("parse error:" ++ msg))
                 Right e  -> e
-                
-parseDefs' input = runExcept $ do
+
+parseExpr' input = runExcept $ do
    tokenStream <- scanTokens input
    top tokenStream
 
