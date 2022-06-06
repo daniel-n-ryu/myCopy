@@ -198,7 +198,7 @@ evalE env (EVar x)       = case (lookupId x env) of
 				Value v1 -> Right v1
 evalE env (EBin o e1 e2) = do v1 <- evalE env e1
 			      v2 <- evalE env e2
-			      return (EvalOp o v1 v2)
+			      return (evalOp o v1 v2)
 				
 evalE env (EIf c t e)    = do v1 <- evalE env c
 			      v2 <- evalE env t
