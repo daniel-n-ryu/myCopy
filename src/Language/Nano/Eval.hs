@@ -257,10 +257,30 @@ evalE env (ETry e1 x e2) = error "TBD"
 -- 12
 
 --------------------------------------------------------------------------------
+
+--------------------------------------------------------------------------------
 evalOp :: Binop -> Value -> Value -> Value
 --------------------------------------------------------------------------------
-evalOp = error "TBD:evalOp"
+evalOp Plus (VInt x) (VInt y) = (VInt (x + y))
+evalOp Minus (VInt x) (VInt y) = (VInt (x - y))
+evalOp Mul (VInt x) (VInt y) = (VInt (x * y))
+evalOp Eq (VInt x) (VInt y) = (VBool (x == y))
+evalOp Eq (VBool x) (VBool y) = (VBool (x == y))
+evalOp Ne (VInt x) (VInt y) = (VBool (x /= y))
+evalOp Ne (VBool x) (VBool y) = (VBool (x /= y))
+evalOp Lt (VInt x) (VInt y) = (VBool (x < y))
+evalOp Le (VInt x) (VInt y) = (VBool (x <= y))
+evalOp And (VBool x) (VBool y) = VBool ((x == True) && (y == True))
+evalOp Or (VBool x) (VBool y) = VBool ((x == True) || (y == True))
+evalOp Cons x y = VCons x y
+evalOp Eq VNil VNil   = (VBool True)
+evalOp Eq (VCons a b) (VCons c d) = if p == True then evalOp Eq b d else (VBool False)
+	where
+	(VBool p) = evalOp Eq a c
 
+
+evalOp Eq _ _         = (VBool False)
+evalOp _ _ _  = throw (Error "type error")
 --------------------------------------------------------------------------------
 -- | `lookupId x env` returns the most recent
 --   binding for the variable `x` (i.e. the first
@@ -278,11 +298,14 @@ evalOp = error "TBD:evalOp"
 --------------------------------------------------------------------------------
 lookupId :: Id -> Env -> Value
 --------------------------------------------------------------------------------
-lookupId = error "TBD:lookupId"
+lookupId x [] = throw (Error ("unbound variable: " ++ x))
+lookupId x ((i,v) : env) = if x == i then v else lookupId x env 
 
 prelude :: Env
 prelude =
-  [ -- HINT: you may extend this "built-in" environment
+  [ 
+    ("head", VPrim(\(VCons x _) -> x)), ("tail", VPrim(\(VCons _ y) -> y))
+    -- HINT: you may extend this "built-in" environment
     -- with some "operators" that you find useful...
   ]
 
