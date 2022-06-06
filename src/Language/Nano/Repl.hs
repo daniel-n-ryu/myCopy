@@ -62,8 +62,11 @@ exitEnv err = putStrLn (errMsg err) >> return prelude
 --------------------------------------------------------------------------------
 defsEnv :: [(Id, Expr)] -> IO Env
 --------------------------------------------------------------------------------
-defsEnv xes = error "TBD:defsEnv" 
-
+defsEnv xes = return (prelude ++ helper xes)
+  where
+  helper :: [(Id, Expr)] -> Env
+  helper [] = []
+  helper ((x, exp):res) = (x, eval [] exp) : helper res
 --------------------------------------------------------------------------------
 -- | A Datatype Commands for the shell -----------------------------------------
 --------------------------------------------------------------------------------
